@@ -209,10 +209,10 @@ class unifi_network_ssid(unifi_object):
         for _k,_v in getattr(self,"reasons_bar_chart_now",{}).items():
             setattr(self,_k,_v)
         setattr(self,f"{self.radio}_num_sta",self.num_sta)
-        setattr(self,f"{self.radio}_tcp_packet_loss",self.tcp_packet_loss)
-        setattr(self,f"{self.radio}_wifi_retries",self.wifi_retries)
-        setattr(self,f"{self.radio}_wifi_latency",self.wifi_latency)
-        setattr(self,f"{self.radio}_avg_client_signal",self.avg_client_signal)
+        setattr(self,f"{self.radio}_tcp_packet_loss", getattr(self, "tcp_packet_loss", 0))
+        setattr(self,f"{self.radio}_wifi_retries", getattr(self, "wifi_retries", 0))
+        setattr(self,f"{self.radio}_wifi_latency", getattr(self, "wifi_latency", 0))
+        setattr(self,f"{self.radio}_avg_client_signal", getattr(self, "avg_client_signal", 0))
     def __str__(self):
         _ret = []
         _unwanted = ["essid","radio","id","t","name","radio_name","wlanconf_id","is_wep","up","site_id","ap_mac","state",
