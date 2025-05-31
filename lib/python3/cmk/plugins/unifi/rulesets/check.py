@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
-# -*- encoding: utf-8; py-indent-offset: 4 -*-
+
 ##  MIT License
-##  
+##
 ##  Copyright (c) 2021 Bash Club
-##  
+##
 ##  Permission is hereby granted, free of charge, to any person obtaining a copy
 ##  of this software and associated documentation files (the "Software"), to deal
 ##  in the Software without restriction, including without limitation the rights
 ##  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 ##  copies of the Software, and to permit persons to whom the Software is
 ##  furnished to do so, subject to the following conditions:
-##  
+##
 ##  The above copyright notice and this permission notice shall be included in all
 ##  copies or substantial portions of the Software.
-##  
+##
 ##  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 ##  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 ##  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -22,26 +22,41 @@
 ##  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 ##  SOFTWARE.
 
-#Function get params (in this case is port, passed via WATO agent rule cunfiguration, hostname and ip addres of host, 
-#for which agent will be invoked 
-def agent_unifi_controller_arguments(params, hostname, ipaddress):
-    args = [
-        '--user', params['user'],
-        '--password', passwordstore_get_cmdline('%s', params['password']),
-        '--port', params['port'],
-        '--piggyback',params['piggyback'],
-    ]
-    _site = params.get("site")
-    if _site:
-        args += ["--site",_site]
-    if 'ignore_cert' in params and params['ignore_cert'] != '':
-        args += ['--ignore-cert']
-    args += [ipaddress]
-    return args
+from cmk.rulesets.v1 import (
+    Help,
+    Title,
+)
 
+from cmk.rulesets.v1.form_specs import (
+    BooleanChoice,
+    DefaultValue,
+    DictElement,
+    Dictionary,
+)
 
-#register invoke function for our agent
-#key value for this dictionary is name part from register datasource of our agent (name="special_agents:myspecial")
-special_agent_info['unifi_controller'] = agent_unifi_controller_arguments
+from cmk.rulesets.v1.rule_specs import (
+    CheckParameters,
+    HostAndItemCondition,
+    Topic,
+)
 
+def _check_parameters_unifi_sites() -> Dictionary:
+    return Dictionary(
+        elements={
+            "ignore_alarms": DictElement(
+                parameter_form=BooleanChoice(
+                    title=Title("Ignore Site Alarms"),
+                    prefill=DefaultValue(False),
+                ),
+                required=True,
+            ),
+        },
+    )
 
+rule_spec_unifi_sites = CheckParameters(
+    name="unifi_sites",
+    condition=HostAndItemCondition(item_title=Title("Site name")),
+    parameter_form=_check_parameters_unifi_sites,
+    title=Title("Unifi Site Parameter"),
+    topic=Topic.NETWORKING,
+)

@@ -2,19 +2,19 @@
 # -*- encoding: utf-8; py-indent-offset: 4 -*-
 #
 ##  MIT License
-##  
+##
 ##  Copyright (c) 2024 Bash Club
-##  
+##
 ##  Permission is hereby granted, free of charge, to any person obtaining a copy
 ##  of this software and associated documentation files (the "Software"), to deal
 ##  in the Software without restriction, including without limitation the rights
 ##  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 ##  copies of the Software, and to permit persons to whom the Software is
 ##  furnished to do so, subject to the following conditions:
-##  
+##
 ##  The above copyright notice and this permission notice shall be included in all
 ##  copies or substantial portions of the Software.
-##  
+##
 ##  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 ##  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 ##  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -23,26 +23,35 @@
 ##  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 ##  SOFTWARE.
 
-from cmk.gui.i18n import _
-
-from .agent_based_api.v1 import (
-    Metric,
-    register,
-    render,
-    Result,
-    IgnoreResults,
-    Service,
-    State,
-    TableRow,
-    Attributes
+from typing import (
+    Any,
+    Dict,
+    Mapping,
+    Sequence,
+    Optional,
 )
 
-from .agent_based_api.v1.type_defs import CheckResult, DiscoveryResult
-from typing import Any, Dict, Mapping, Sequence, Optional
+from cmk.agent_based.v1 import (
+    Attributes,
+    TableRow,
+)
+from cmk.agent_based.v2 import (
+    AgentSection,
+    CheckPlugin,
+    CheckResult,
+    DiscoveryResult,
+    InventoryPlugin,
+    Metric,
+    Result,
+    RuleSetType,
+    Service,
+    State,
+    StringTable,
+)
+from cmk.plugins.lib import interfaces
 
 from dataclasses import dataclass
 from collections import defaultdict
-from .utils import interfaces
 
 SubSection = Dict[str,str]
 Section = Dict[str, SubSection]
@@ -76,8 +85,6 @@ def _unifi_status2state(status):
         "warning"   : State.WARN,
         "error"     : State.CRIT
     }.get(status.lower(),State.UNKNOWN)
-
-from pprint import pprint
 
 def parse_unifi_dict(string_table):
     _ret = dictobject()
@@ -134,19 +141,19 @@ def inventory_unifi_controller(section):
         }
     )
 
-register.agent_section(
+agent_section_unifi_controller = AgentSection(
     name = 'unifi_controller',
     parse_function = parse_unifi_dict
 )
 
-register.check_plugin(
+check_plugin_unifi_controller = CheckPlugin(
     name='unifi_controller',
     service_name='%s',
     discovery_function=discovery_unifi_controller,
     check_function=check_unifi_controller,
 )
 
-register.inventory_plugin(
+inventory_plugin_unifi_controller = InventoryPlugin(
     name = "unifi_controller",
     inventory_function = inventory_unifi_controller
 )
@@ -176,7 +183,7 @@ def check_unifi_sites(item,params,section):
         )
         #yield Result(
         #    state=_expect_number(site.lan_num_disconnected),
-        #    notice=f"{site.lan_num_disconnected} Switch disconnected" ##disconnected kann 
+        #    notice=f"{site.lan_num_disconnected} Switch disconnected" ##disconnected kann
         #)
 
     if site.wlan_status != "unknown":
@@ -222,12 +229,12 @@ def check_unifi_sites(item,params,section):
     )
 
 
-register.agent_section(
+agent_section_unifi_sites = AgentSection(
     name = 'unifi_sites',
     parse_function = parse_unifi_nested_dict
 )
 
-register.check_plugin(
+check_plugin_unifi_sites = CheckPlugin(
     name='unifi_sites',
     service_name='Site %s',
     discovery_function=discovery_unifi_sites,
@@ -254,12 +261,12 @@ def inventory_unifi_device_shortlist(section):
             }
         )
 
-register.agent_section(
+agent_section_unifi_device_shortlist = AgentSection(
     name = 'unifi_device_shortlist',
     parse_function = parse_unifi_nested_dict
 )
 
-register.inventory_plugin(
+inventory_plugin_unifi_device_shortlist = InventoryPlugin(
     name = "unifi_device_shortlist",
     inventory_function = inventory_unifi_device_shortlist
 )
@@ -291,7 +298,7 @@ def check_unifi_device(item,section):
         )
     #if section.state != "1":
     #    yield IgnoreResults(f"device not active State: {section.state}")
-        
+
     if item == "Unifi Device":
         yield Result(
             state=State.OK,
@@ -353,7 +360,7 @@ def check_unifi_device(item,section):
         yield Metric("rtt",_safe_float(section.speedtest_ping))
         yield Metric("if_in_bps",_safe_float(section.speedtest_download)*1024*1024) ## mbit to bit
         yield Metric("if_out_bps",_safe_float(section.speedtest_upload)*1024*1024) ## mbit to bit
-            
+
     if item == "Uplink":
         yield Result(
             state=_expect_bool(section.uplink_up),
@@ -387,19 +394,19 @@ def inventory_unifi_device(section):
         inventory_attributes= _hwdict
     )
 
-register.agent_section(
+agent_section_unifi_device = AgentSection(
     name = 'unifi_device',
     parse_function = parse_unifi_dict
 )
 
-register.check_plugin(
+check_plugin_unifi_device = CheckPlugin(
     name='unifi_device',
     service_name='%s',
     discovery_function=discovery_unifi_device,
     check_function=check_unifi_device,
 )
 
-register.inventory_plugin(
+inventory_plugin_unifi_device = InventoryPlugin(
     name = "unifi_device",
     inventory_function = inventory_unifi_device
 )
@@ -467,15 +474,15 @@ def _convert_unifi_counters_if(section: Section) -> interfaces.Section:
     ##  10|oper_status|1
     ##  10|admin_status|1
     ##  10|portconf|ALL
-    ##  unifi_interface(index='10', descr='Port 10', alias='Port 10', type='6', speed=1000000000, oper_status='1', 
-    ##      in_octets=38448560321, in_ucast=125404491, in_mcast=16414, in_bcast=1290, in_discards=0, in_errors=0, 
-    ##      out_octets=238185160794, out_ucast=228451699, out_mcast=262551, out_bcast=20783341, out_discards=0, out_errors=0, 
-    ##      out_qlen=0, phys_address='', oper_status_name='up', speed_as_text='', group=None, node=None, admin_status='1', 
+    ##  unifi_interface(index='10', descr='Port 10', alias='Port 10', type='6', speed=1000000000, oper_status='1',
+    ##      in_octets=38448560321, in_ucast=125404491, in_mcast=16414, in_bcast=1290, in_discards=0, in_errors=0,
+    ##      out_octets=238185160794, out_ucast=228451699, out_mcast=262551, out_bcast=20783341, out_discards=0, out_errors=0,
+    ##      out_qlen=0, phys_address='', oper_status_name='up', speed_as_text='', group=None, node=None, admin_status='1',
     ##      total_octets=276633721115, jumbo=True, satisfaction=100,
-    ##      poe_enable=False, poe_mode='auto', poe_good=None, poe_current=0.0, poe_power=0.0, poe_voltage=0.0, poe_class='Unknown', 
+    ##      poe_enable=False, poe_mode='auto', poe_good=None, poe_current=0.0, poe_power=0.0, poe_voltage=0.0, poe_class='Unknown',
     ##      dot1x_mode='unknown',dot1x_status='disabled', ip_address='', portconf='ALL')
 
-    return [ 
+    return [
         unifi_interface(
             attributes=interfaces.Attributes(
                 index=str(netif.port_idx),
@@ -483,7 +490,7 @@ def _convert_unifi_counters_if(section: Section) -> interfaces.Section:
                 alias=netif.name,
                 type='6',
                 speed=_safe_int(netif.speed)*1000000,
-                oper_status=netif.oper_status,
+                oper_status="1" if netif.oper_status == "1" else "2",
                 admin_status=netif.admin_status,
             ),
             counters=interfaces.Counters(
@@ -514,7 +521,7 @@ def _convert_unifi_counters_if(section: Section) -> interfaces.Section:
             portconf=netif.portconf
         ) for netif in parse_unifi_nested_dict(section).values()
     ]
-    
+
 
 
 def discovery_unifi_network_port_if(  ## fixme parsed_section_name
@@ -527,7 +534,7 @@ def discovery_unifi_network_port_if(  ## fixme parsed_section_name
     )
 
 
-def check_unifi_network_port_if(  ##fixme parsed_section_name 
+def check_unifi_network_port_if(  ##fixme parsed_section_name
     item: str,
     params: Mapping[str, Any],
     section: Section,
@@ -540,14 +547,12 @@ def check_unifi_network_port_if(  ##fixme parsed_section_name
         _converted_ifs,
     )
     if iface:
-        #pprint(iface)
         if iface.portconf:
             yield Result(
                 state=State.OK,
                 summary=f"Network: {iface.portconf}"
             )
         yield Metric("satisfaction",max(0,iface.satisfaction))
-        #pprint(iface)
         if iface.poe_enable:
             yield Result(
                 state=State.OK,
@@ -582,7 +587,7 @@ def inventory_unifi_network_ports(section):
                 "port_type"     : 6,
             }
         )
-        
+
     yield Attributes(
         path=["networking"],
         inventory_attributes={
@@ -592,27 +597,26 @@ def inventory_unifi_network_ports(section):
         }
     )
 
-register.check_plugin(
+check_plugin_unifi_network_ports_if = CheckPlugin(
     name='unifi_network_ports_if',
     sections=["unifi_network_ports"],
     service_name='Interface %s',
     discovery_ruleset_name="inventory_if_rules",
-    discovery_ruleset_type=register.RuleSetType.ALL,
+    discovery_ruleset_type=RuleSetType.ALL,
     discovery_default_parameters=dict(interfaces.DISCOVERY_DEFAULT_PARAMETERS),
     discovery_function=discovery_unifi_network_port_if,
-    check_ruleset_name="if",
+    check_ruleset_name="interfaces",
     check_default_parameters=interfaces.CHECK_DEFAULT_PARAMETERS,
     check_function=check_unifi_network_port_if,
 )
 
-register.inventory_plugin(
+inventory_plugin_unifi_network_ports = InventoryPlugin(
     name = "unifi_network_ports",
     inventory_function = inventory_unifi_network_ports
 )
 
 ############ DEVICERADIO ###########
 def discovery_unifi_radios(section):
-    #pprint(section)
     for _radio in section.values():
         if _radio.radio == "ng":
             yield Service(item="2.4Ghz")
@@ -646,12 +650,12 @@ def check_unifi_radios(item,section):
         summary=f"Guest: {radio.guest_num_sta}"
     )
 
-register.agent_section(
+agent_section_unifi_network_radios = AgentSection(
     name = 'unifi_network_radios',
     parse_function = parse_unifi_nested_dict
 )
 
-register.check_plugin(
+check_plugin_unifi_network_radios = CheckPlugin(
     name='unifi_network_radios',
     service_name='Radio %s',
     discovery_function=discovery_unifi_radios,
@@ -691,26 +695,26 @@ def check_unifi_ssids(item,section):
         yield Metric("satisfaction",max(0,_satisfaction))
         yield Metric("wlan_24Ghz_num_user",_safe_int(ssid.ng_num_sta) )
         yield Metric("wlan_5Ghz_num_user",_safe_int(ssid.na_num_sta) )
-    
+
         yield Metric("na_avg_client_signal",_safe_int(ssid.na_avg_client_signal))
         yield Metric("ng_avg_client_signal",_safe_int(ssid.ng_avg_client_signal))
-        
+
         yield Metric("na_tcp_packet_loss",_safe_int(ssid.na_tcp_packet_loss))
         yield Metric("ng_tcp_packet_loss",_safe_int(ssid.ng_tcp_packet_loss))
-    
+
         yield Metric("na_wifi_retries",_safe_int(ssid.na_wifi_retries))
         yield Metric("ng_wifi_retries",_safe_int(ssid.ng_wifi_retries))
         yield Metric("na_wifi_latency",_safe_int(ssid.na_wifi_latency))
         yield Metric("ng_wifi_latency",_safe_int(ssid.ng_wifi_latency))
-    
-    
 
-register.agent_section(
+
+
+agent_section_unifi_network_ssids = AgentSection(
     name = 'unifi_network_ssids',
     parse_function = parse_unifi_nested_dict
 )
 
-register.check_plugin(
+check_plugin_unifi_network_ssids = CheckPlugin(
     name='unifi_network_ssids',
     service_name='SSID: %s',
     discovery_function=discovery_unifi_ssids,
@@ -720,7 +724,6 @@ register.check_plugin(
 
 ############ SSIDsListController ###########
 def discovery_unifi_ssidlist(section):
-    #pprint(section)
     for _ssid in section:
         yield Service(item=_ssid)
 
@@ -739,25 +742,23 @@ def check_unifi_ssidlist(item,section):
         yield Metric("wlan_5Ghz_num_user",_safe_int(ssid.na_num_sta) )
         yield Metric("na_avg_client_signal",_safe_int(ssid.na_avg_client_signal))
         yield Metric("ng_avg_client_signal",_safe_int(ssid.ng_avg_client_signal))
-        
+
         yield Metric("na_tcp_packet_loss",_safe_int(ssid.na_tcp_packet_loss))
         yield Metric("ng_tcp_packet_loss",_safe_int(ssid.ng_tcp_packet_loss))
-    
+
         yield Metric("na_wifi_retries",_safe_int(ssid.na_wifi_retries))
         yield Metric("ng_wifi_retries",_safe_int(ssid.ng_wifi_retries))
         yield Metric("na_wifi_latency",_safe_int(ssid.na_wifi_latency))
         yield Metric("ng_wifi_latency",_safe_int(ssid.ng_wifi_latency))
 
-register.agent_section(
+agent_section_unifi_ssid_list = AgentSection(
     name = 'unifi_ssid_list',
     parse_function = parse_unifi_nested_dict
 )
 
-register.check_plugin(
+check_plugin_unifi_ssid_list = CheckPlugin(
     name='unifi_ssid_list',
     service_name='SSID: %s',
     discovery_function=discovery_unifi_ssidlist,
     check_function=check_unifi_ssidlist,
 )
-
-
