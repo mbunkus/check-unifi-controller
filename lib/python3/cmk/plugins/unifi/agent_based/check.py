@@ -120,7 +120,7 @@ def check_unifi_controller(item,section):
         if int(section.update_available) > 0:
             yield Result(
                 state=State.WARN,
-                notice=_("Update available")
+                notice="Update available"
             )
     if item == "Cloudkey":
         yield Result(
@@ -130,7 +130,7 @@ def check_unifi_controller(item,section):
         if _safe_int(section.cloudkey_update_available) > 0:
             yield Result(
                 state=State.WARN,
-                notice=_("Update available")
+                notice="Update available"
             )
 
 def inventory_unifi_controller(section):
@@ -307,7 +307,7 @@ def check_unifi_device(item,section):
         if _safe_int(section.upgradable) > 0:
             yield Result(
                 state=State.WARN,
-                notice=_("Update available")
+                notice="Update available"
             )
     if item == "Active-User":
         _active_user = _safe_int(section.user_num_sta)
